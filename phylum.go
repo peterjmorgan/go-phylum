@@ -296,8 +296,6 @@ func (p *PhylumClient) ListGroupProjects(groupName string) ([]ProjectSummaryResp
 	return result, nil
 }
 
-// Slow as fuck
-// TODO: goroutines
 func (p *PhylumClient) GetAllGroupProjects(groupName string) ([]*ProjectResponse, error) {
 	var result []*ProjectResponse
 
@@ -307,14 +305,29 @@ func (p *PhylumClient) GetAllGroupProjects(groupName string) ([]*ProjectResponse
 		return nil, err
 	}
 
+	chRecv := make(chan *ProjectResponse)
+	var wg sync.WaitGroup
+
 	for _, proj := range groupProjectList {
-		temp, err := p.GetGroupProject(groupName, proj.Id.String())
-		if err != nil {
-			fmt.Printf("Failed to GetGroupProject: %v\n", err)
-			return nil, err
-		}
-		result = append(result, temp)
+		wg.Add(1)
+		go func(inProj ProjectSummaryResponse) {
+			temp, err := p.GetGroupProject(groupName, proj.Id.String())
+			if err != nil {
+				fmt.Printf("Failed to GetGroupProject: %v\n", err)
+				return
+			}
+			chRecv <- temp
+
+		}(proj)
 	}
+
+	go func() {
+		for res := range chRecv {
+			result = append(result, res)
+		}
+		close(chRecv)
+	}()
+	wg.Wait()
 
 	return result, err
 }
