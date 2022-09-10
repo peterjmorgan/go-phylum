@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -36,7 +37,7 @@ type PhylumClient struct {
 	OauthToken   oauth2.Token
 	Ctx          context.Context
 	Client       *resty.Client
-	Groups		 ListUserGroupsResponse
+	Groups       ListUserGroupsResponse
 }
 
 func (p *PhylumClient) GetAccessToken() error {
@@ -177,22 +178,28 @@ func (p *PhylumClient) ListProjects() ([]ProjectSummaryResponse, error) {
 	return temp, nil
 }
 
-//TODO: abstract group elements in the optional struct
+// TODO: abstract group elements in the optional struct
 type ProjectOpts struct {
-	GroupName 	string
+	GroupName string
 }
 
 func (p *PhylumClient) CreateProject(name string, opts *ProjectOpts) (*ProjectSummaryResponse, error) {
 	var respPSR ProjectSummaryResponse
 	var url string = "https://api.phylum.io/api/v0/data/projects"
 
-		
+	bodyMap := make(map[string]string, 0)
+	bodyMap["name"] = name
+
+	v := reflect.ValueOf(opts)
+	if v.Kind() == reflect.Ptr && !v.IsNil() {
+		if opts.GroupName != "" {
+			bodyMap["group_name"] = opts.GroupName
+		}
+	}
 
 	resp, err := p.Client.R().
 		SetAuthToken(p.OauthToken.AccessToken).
-		SetBody(map[string]string{
-			"name": name,
-		}).
+		SetBody(bodyMap).
 		Post(url)
 	test := CheckResponse(resp)
 	if test != nil || err != nil {

@@ -63,8 +63,8 @@ func Test_PhylumClient_GetProjects(t *testing.T) {
 func TestPhylumClient_CreateProject(t *testing.T) {
 	pc := NewClient()
 	type args struct {
-		name  string
-		group string
+		name string
+		opts *ProjectOpts
 	}
 	tests := []struct {
 		name    string
@@ -72,16 +72,17 @@ func TestPhylumClient_CreateProject(t *testing.T) {
 		want    *ProjectSummaryResponse
 		wantErr bool
 	}{
-		{"one", args{"ABCD-testProject1", ""}, nil, false},
+		{"one", args{"ABCD-testProject12", &ProjectOpts{}}, nil, false},
+		{"one", args{"ABCD-testProject12", &ProjectOpts{GroupName: "test2"}}, nil, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := pc.CreateProject(tt.args.name, tt.args.group)
+			got, err := pc.CreateProject(tt.args.name, tt.args.opts)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CreateProject() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if reflect.TypeOf(got) != reflect.TypeOf(tt.want) {
 				t.Errorf("CreateProject() got = %v, want %v", got, tt.want)
 			}
 		})
