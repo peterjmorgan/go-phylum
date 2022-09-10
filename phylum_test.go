@@ -36,7 +36,7 @@ func Test_getTokenFromCLI(t *testing.T) {
 // }
 
 func Test_PhylumClient_ListProjects(t *testing.T) {
-	pc := NewClient()
+	pc := NewClient(&ClientOptions{})
 	tests := []struct {
 		name    string
 		want    []ProjectSummaryResponse
@@ -59,7 +59,7 @@ func Test_PhylumClient_ListProjects(t *testing.T) {
 }
 
 func TestPhylumClient_CreateProject(t *testing.T) {
-	pc := NewClient()
+	pc := NewClient(&ClientOptions{})
 	type args struct {
 		name string
 		opts *ProjectOpts
@@ -88,7 +88,7 @@ func TestPhylumClient_CreateProject(t *testing.T) {
 }
 
 func TestPhylumClient_GetGroupProject(t *testing.T) {
-	pc := NewClient()
+	pc := NewClient(&ClientOptions{})
 
 	type args struct {
 		groupName string
@@ -117,7 +117,7 @@ func TestPhylumClient_GetGroupProject(t *testing.T) {
 }
 
 func TestPhylumClient_ListGroupProjects(t *testing.T) {
-	p := NewClient()
+	p := NewClient(&ClientOptions{})
 
 	type args struct {
 		groupName string
@@ -145,7 +145,7 @@ func TestPhylumClient_ListGroupProjects(t *testing.T) {
 }
 
 func TestPhylumClient_GetAllGroupProjects(t *testing.T) {
-	p := NewClient()
+	p := NewClient(&ClientOptions{})
 
 	type args struct {
 		groupName string
@@ -173,7 +173,7 @@ func TestPhylumClient_GetAllGroupProjects(t *testing.T) {
 }
 
 func TestPhylumClient_GetAllGroupProjectsByEcosystem(t *testing.T) {
-	p := NewClient()
+	p := NewClient(&ClientOptions{})
 
 	type args struct {
 		groupName string
