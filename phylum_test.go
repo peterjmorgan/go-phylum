@@ -100,7 +100,7 @@ func TestPhylumClient_GetGroupProject(t *testing.T) {
 		want    *ProjectResponse
 		wantErr bool
 	}{
-		{"one", args{"test2", "7e141bfe-1771-4ccb-9d87-5c6301276fc3"}, nil, false},
+		{"one", args{"test2", "85e3142f-efc9-41fc-b004-ca570df89af8"}, nil, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
