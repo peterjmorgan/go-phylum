@@ -36,7 +36,7 @@ func Test_getTokenFromCLI(t *testing.T) {
 // }
 
 func Test_PhylumClient_ListProjects(t *testing.T) {
-	pc := NewClient(&ClientOptions{})
+	pc := NewClient()
 	tests := []struct {
 		name    string
 		want    []ProjectSummaryResponse
@@ -59,7 +59,7 @@ func Test_PhylumClient_ListProjects(t *testing.T) {
 }
 
 func TestPhylumClient_CreateProject(t *testing.T) {
-	pc := NewClient(&ClientOptions{})
+	pc := NewClient()
 	type args struct {
 		name string
 		opts *ProjectOpts
@@ -88,7 +88,7 @@ func TestPhylumClient_CreateProject(t *testing.T) {
 }
 
 func TestPhylumClient_GetGroupProject(t *testing.T) {
-	pc := NewClient(&ClientOptions{})
+	pc := NewClient()
 
 	type args struct {
 		groupName string
@@ -117,7 +117,7 @@ func TestPhylumClient_GetGroupProject(t *testing.T) {
 }
 
 func TestPhylumClient_ListGroupProjects(t *testing.T) {
-	p := NewClient(&ClientOptions{})
+	p := NewClient()
 
 	type args struct {
 		groupName string
@@ -145,7 +145,9 @@ func TestPhylumClient_ListGroupProjects(t *testing.T) {
 }
 
 func TestPhylumClient_GetAllGroupProjects(t *testing.T) {
-	p := NewClient(&ClientOptions{})
+	p := NewClient()
+	//p.Client.SetProxy("http://localhost:8080")
+	//p.Client.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
 
 	type args struct {
 		groupName string
@@ -156,7 +158,7 @@ func TestPhylumClient_GetAllGroupProjects(t *testing.T) {
 		want    []*ProjectResponse
 		wantErr bool
 	}{
-		{"one", args{"test2"}, nil, false},
+		{"one", args{"spring-test2"}, nil, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -173,7 +175,7 @@ func TestPhylumClient_GetAllGroupProjects(t *testing.T) {
 }
 
 func TestPhylumClient_GetAllGroupProjectsByEcosystem(t *testing.T) {
-	p := NewClient(&ClientOptions{})
+	p := NewClient()
 
 	type args struct {
 		groupName string

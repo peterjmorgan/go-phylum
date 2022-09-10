@@ -3,12 +3,9 @@ package phylum
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
-	"net/url"
 	"os/exec"
 	"reflect"
 	"strings"
@@ -73,12 +70,7 @@ func (p *PhylumClient) GetAccessToken() error {
 	return nil
 }
 
-type ClientOptions struct {
-	ProxyUrl  string
-	VerifyTLS bool
-}
-
-func NewClient(opts *ClientOptions) *PhylumClient {
+func NewClient() *PhylumClient {
 	ctx := context.Background()
 	client := resty.New()
 
@@ -86,24 +78,6 @@ func NewClient(opts *ClientOptions) *PhylumClient {
 	if err != nil {
 		fmt.Printf("Failed to get token from cli: %v\n", err)
 		return nil
-	}
-
-	v := reflect.ValueOf(opts)
-	if v.Kind() == reflect.Ptr && !v.IsNil() {
-		if opts.ProxyUrl != "" {
-			proxyUrl, err := url.Parse(opts.ProxyUrl)
-			if err != nil {
-				fmt.Printf("failed to parse proxyurl: %v\n", err)
-				return nil
-			}
-			proxyHttpClient := &http.Client{
-				Transport: &http.Transport{
-					Proxy:           http.ProxyURL(proxyUrl),
-					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-				},
-			}
-			client = resty.NewWithClient(proxyHttpClient)
-		}
 	}
 
 	pClient := PhylumClient{
