@@ -1069,7 +1069,7 @@ type ProjectSummaryResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 
 	// The ecosystem of the project; determined by its latest job
-	Ecosystem *interface{} `json:"ecosystem"`
+	Ecosystem *string `json:"ecosystem"`
 
 	// The project's group's name, if this is a group project
 	GroupName *string `json:"group_name"`
