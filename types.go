@@ -1172,9 +1172,10 @@ type SubmitPackageRequest struct {
 	Packages []PackageDescriptor `json:"packages"`
 
 	// The id of the project this top level package should be associated with
-	Project openapi_types.UUID `json:"project"`
+	Project string `json:"project"`
 
 	// The 'type' of package, NPM, RubyGem, etc
+	//TODO: this probably needs to be a *string
 	Type interface{} `json:"type"`
 }
 

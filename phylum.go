@@ -378,3 +378,44 @@ func (p *PhylumClient) GetAllGroupProjectsByEcosystem(groupName string, ecosyste
 
 	return result, err
 }
+
+func (p *PhylumClient) AnalyzePackages(projectType string, projectID string, packages *[]PackageDescriptor) (*interface{}, error) {
+	var respPSR SubmitPackageResponse
+	var url string = "https://api.phylum.io/api/v0/data/jobs"
+	
+	testing123 := SubmitPackageRequest{
+		GroupName: nil,
+		IsUser:    true,
+		Label:     "",
+		Packages:  *packages,
+		Project:   projectID,
+		Type:      projectType,
+	}
+
+	// bodyMap := make(map[string]string, 0)
+	// bodyMap["name"] = name
+
+	// v := reflect.ValueOf(opts)
+	// if v.Kind() == reflect.Ptr && !v.IsNil() {
+	// 	if opts.GroupName != "" {
+	// 		bodyMap["group_name"] = opts.GroupName
+	// 	}
+	// }
+
+	resp, err := p.Client.R().
+		SetAuthToken(p.OauthToken.AccessToken).
+		SetBody(testing123).
+		Post(url)
+	test := CheckResponse(resp)
+	if test != nil || err != nil {
+		fmt.Printf("failed to create project\n")
+		return nil, errors.New(*test)
+	}
+	err = json.Unmarshal(resp.Body(), &respPSR)
+	if err != nil {
+		fmt.Printf("AnalyzePackages(): failed parse json: %v\n", err)
+	}
+
+
+	return nil, nil
+}
