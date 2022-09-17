@@ -1,7 +1,6 @@
 package phylum
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"os/exec"
@@ -211,8 +210,8 @@ func TestPhylumClient_GetAllGroupProjectsByEcosystem(t *testing.T) {
 
 func TestPhylumClient_AnalyzePackages(t *testing.T) {
 	p := NewClient()
-	p.Client.SetProxy("http://localhost:8080")
-	p.Client.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
+	//p.Client.SetProxy("http://localhost:8080")
+	//p.Client.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
 	var ParseCmdArgs = []string{"parse", "package-lock.json"}
 	parseCmd := exec.Command("phylum", ParseCmdArgs...)
 	output, err := parseCmd.Output()
@@ -220,7 +219,7 @@ func TestPhylumClient_AnalyzePackages(t *testing.T) {
 		fmt.Printf("Failed to exec 'phylum %v': %v\n", strings.Join(ParseCmdArgs, " "), err)
 		return
 	}
-	packages := make([]PackageDescriptor,0)
+	packages := make([]PackageDescriptor, 0)
 	err = json.Unmarshal(output, &packages)
 
 	type args struct {
@@ -238,13 +237,13 @@ func TestPhylumClient_AnalyzePackages(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := p.AnalyzePackages(tt.args.projectType, tt.args.projectID, tt.args.packages)
+			got, err := p.AnalyzeParsedPackages(tt.args.projectType, tt.args.projectID, tt.args.packages)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("AnalyzePackages() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("AnalyzeParsedPackages() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("AnalyzePackages() got = %v, want %v", got, tt.want)
+				t.Errorf("AnalyzeParsedPackages() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
