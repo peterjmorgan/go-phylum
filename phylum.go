@@ -379,6 +379,7 @@ func (p *PhylumClient) GetAllGroupProjectsByEcosystem(groupName string, ecosyste
 	return result, err
 }
 
+// TODO: add group and label handling
 func (p *PhylumClient) AnalyzeParsedPackages(projectType string, projectID string, packages *[]PackageDescriptor) (*interface{}, error) {
 	var respPSR SubmitPackageResponse
 	var url string = "https://api.phylum.io/api/v0/data/jobs"
@@ -398,13 +399,38 @@ func (p *PhylumClient) AnalyzeParsedPackages(projectType string, projectID strin
 		Post(url)
 	test := CheckResponse(resp)
 	if test != nil || err != nil {
-		fmt.Printf("failed to create project\n")
+		fmt.Printf("failed to analyze packages\n")
 		return nil, errors.New(*test)
 	}
 	err = json.Unmarshal(resp.Body(), &respPSR)
 	if err != nil {
 		fmt.Printf("AnalyzeParsedPackages(): failed parse json: %v\n", err)
+		return nil, err
 	}
 
 	return nil, nil
+}
+
+// TODO: handle non verbose
+// TODO: handle jobstatusresponsevariant
+func (p *PhylumClient) GetJob(jobID string) (*JobStatusResponseForPackageStatusExtended, *[]byte, error) {
+	var jobResponse JobStatusResponseForPackageStatusExtended
+	url := fmt.Sprintf("https://api.phylum.io/api/v0/data/jobs/%s", jobID)
+
+	resp, err := p.Client.R().
+		SetAuthToken(p.OauthToken.AccessToken).
+		Get(url)
+	test := CheckResponse(resp)
+	if test != nil || err != nil {
+		fmt.Printf("failed to GetJob\n")
+		return nil, nil, errors.New(*test)
+	}
+	err = json.Unmarshal(resp.Body(), &jobResponse)
+	if err != nil {
+		fmt.Printf("GetJob(): failed parse json: %v\n", err)
+		return nil, nil, err
+	}
+	jsonData := resp.Body()
+
+	return &jobResponse, &jsonData, nil
 }

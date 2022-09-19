@@ -248,3 +248,34 @@ func TestPhylumClient_AnalyzePackages(t *testing.T) {
 		})
 	}
 }
+
+func TestPhylumClient_GetJob(t *testing.T) {
+	p := NewClient()
+
+	type args struct {
+		jobID   string
+		verbose bool
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *JobStatusResponseForPackageStatusExtended
+		wantErr bool
+	}{
+		{"one", args{"e1dc76a9-02c2-43c9-bd03-e654fb569ab9", true}, nil, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, jsonData, err := p.GetJob(tt.args.jobID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetJob() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if reflect.TypeOf(got) != reflect.TypeOf(tt.want) {
+				t.Errorf("GetJob() got = %v, want %v", got, tt.want)
+			}
+			blah := *jsonData
+			_ = blah
+		})
+	}
+}
