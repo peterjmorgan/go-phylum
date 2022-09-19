@@ -379,9 +379,8 @@ func (p *PhylumClient) GetAllGroupProjectsByEcosystem(groupName string, ecosyste
 	return result, err
 }
 
-// TODO: add group and label handling
-func (p *PhylumClient) AnalyzeParsedPackages(projectType string, projectID string, packages *[]PackageDescriptor) (*interface{}, error) {
-	var respPSR SubmitPackageResponse
+func (p *PhylumClient) AnalyzeParsedPackages(projectType string, projectID string, packages *[]PackageDescriptor) (string, error) {
+	var respSPR SubmitPackageResponse
 	var url string = "https://api.phylum.io/api/v0/data/jobs"
 
 	submitPackageRequest := SubmitPackageRequest{
@@ -400,15 +399,18 @@ func (p *PhylumClient) AnalyzeParsedPackages(projectType string, projectID strin
 	test := CheckResponse(resp)
 	if test != nil || err != nil {
 		fmt.Printf("failed to analyze packages\n")
-		return nil, errors.New(*test)
+		return "", errors.New(*test)
 	}
-	err = json.Unmarshal(resp.Body(), &respPSR)
+	err = json.Unmarshal(resp.Body(), &respSPR)
 	if err != nil {
 		fmt.Printf("AnalyzeParsedPackages(): failed parse json: %v\n", err)
-		return nil, err
+		return "", fmt.Errorf("AnalyzeParsedPackages(): failed parse json: %v\n", err)
+	}
+	if respSPR.JobId.String() == "" {
+		return "", fmt.Errorf("AnalyzeParsedPackages(): failed to read JobID, submission may not have been successful")
 	}
 
-	return nil, nil
+	return respSPR.JobId.String(), nil
 }
 
 // TODO: handle non verbose
