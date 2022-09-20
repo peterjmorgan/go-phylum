@@ -415,9 +415,9 @@ func (p *PhylumClient) AnalyzeParsedPackages(projectType string, projectID strin
 
 // TODO: handle non verbose
 // TODO: handle jobstatusresponsevariant
-func (p *PhylumClient) GetJob(jobID string) (*JobStatusResponseForPackageStatusExtended, *[]byte, error) {
+func (p *PhylumClient) GetJobVerbose(jobID string) (*JobStatusResponseForPackageStatusExtended, *[]byte, error) {
 	var jobResponse JobStatusResponseForPackageStatusExtended
-	url := fmt.Sprintf("https://api.phylum.io/api/v0/data/jobs/%s", jobID)
+	url := fmt.Sprintf("https://api.phylum.io/api/v0/data/jobs/%s?verbose=true", jobID)
 
 	resp, err := p.Client.R().
 		SetAuthToken(p.OauthToken.AccessToken).

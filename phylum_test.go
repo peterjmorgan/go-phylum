@@ -266,7 +266,7 @@ func TestPhylumClient_GetJob(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, jsonData, err := p.GetJob(tt.args.jobID)
+			got, jsonData, err := p.GetJobVerbose(tt.args.jobID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetJob() error = %v, wantErr %v", err, tt.wantErr)
 				return
