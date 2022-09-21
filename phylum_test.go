@@ -26,6 +26,28 @@ func Test_getTokenFromCLI(t *testing.T) {
 	}
 }
 
+func Test_NewClient_WithOptions(t *testing.T) {
+	opts := ClientOptions{
+		Token: "",
+	}
+
+	pc, err := NewClient(&opts)
+	if err != nil {
+		t.Errorf("NewClient() failed with error: %v\n", err)
+	}
+
+	if reflect.TypeOf(pc) != reflect.TypeOf(&PhylumClient{}) {
+		t.Errorf("NewClient() got = %v, want %v", reflect.TypeOf(pc), reflect.TypeOf(&PhylumClient{}))
+	}
+
+	p, _ := NewClient(&ClientOptions{})
+	if reflect.TypeOf(p) != reflect.TypeOf(&PhylumClient{}) {
+		t.Errorf("NewClient() got = %v, want %v", reflect.TypeOf(p), reflect.TypeOf(&PhylumClient{}))
+	}
+
+	fmt.Println("Done")
+}
+
 // func Test_api_getHealth(t *testing.T) {
 // 	tests := []struct {
 // 		name string
@@ -40,7 +62,7 @@ func Test_getTokenFromCLI(t *testing.T) {
 // }
 
 func Test_PhylumClient_ListProjects(t *testing.T) {
-	pc := NewClient()
+	pc, _ := NewClient(&ClientOptions{})
 	tests := []struct {
 		name    string
 		want    []ProjectSummaryResponse
@@ -63,7 +85,7 @@ func Test_PhylumClient_ListProjects(t *testing.T) {
 }
 
 func TestPhylumClient_CreateProject(t *testing.T) {
-	pc := NewClient()
+	pc, _ := NewClient(&ClientOptions{})
 	type args struct {
 		name string
 		opts *ProjectOpts
@@ -92,7 +114,7 @@ func TestPhylumClient_CreateProject(t *testing.T) {
 }
 
 func TestPhylumClient_GetGroupProject(t *testing.T) {
-	pc := NewClient()
+	pc, _ := NewClient(&ClientOptions{})
 
 	type args struct {
 		groupName string
@@ -121,7 +143,7 @@ func TestPhylumClient_GetGroupProject(t *testing.T) {
 }
 
 func TestPhylumClient_ListGroupProjects(t *testing.T) {
-	p := NewClient()
+	p, _ := NewClient(&ClientOptions{})
 
 	type args struct {
 		groupName string
@@ -149,7 +171,7 @@ func TestPhylumClient_ListGroupProjects(t *testing.T) {
 }
 
 func TestPhylumClient_GetAllGroupProjects(t *testing.T) {
-	p := NewClient()
+	p, _ := NewClient(&ClientOptions{})
 	//p.Client.SetProxy("http://localhost:8080")
 	//p.Client.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
 
@@ -179,7 +201,7 @@ func TestPhylumClient_GetAllGroupProjects(t *testing.T) {
 }
 
 func TestPhylumClient_GetAllGroupProjectsByEcosystem(t *testing.T) {
-	p := NewClient()
+	p, _ := NewClient(&ClientOptions{})
 
 	type args struct {
 		groupName string
@@ -209,7 +231,7 @@ func TestPhylumClient_GetAllGroupProjectsByEcosystem(t *testing.T) {
 }
 
 func TestPhylumClient_AnalyzePackages(t *testing.T) {
-	p := NewClient()
+	p, _ := NewClient(&ClientOptions{})
 	//p.Client.SetProxy("http://localhost:8080")
 	//p.Client.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
 	var ParseCmdArgs = []string{"parse", "package-lock.json"}
@@ -250,7 +272,7 @@ func TestPhylumClient_AnalyzePackages(t *testing.T) {
 }
 
 func TestPhylumClient_GetJob(t *testing.T) {
-	p := NewClient()
+	p, _ := NewClient(&ClientOptions{})
 
 	type args struct {
 		jobID   string

@@ -32,12 +32,49 @@ func CheckResponse(resp *resty.Response) *string {
 	return nil
 }
 
+type ClientOptions struct {
+	Token string
+}
+
 type PhylumClient struct {
 	RefreshToken string
 	OauthToken   oauth2.Token
 	Ctx          context.Context
 	Client       *resty.Client
 	Groups       ListUserGroupsResponse
+}
+
+func NewClient(opts *ClientOptions) (*PhylumClient, error) {
+	var PhylumToken string = ""
+	var err error
+
+	ctx := context.Background()
+	client := resty.New()
+
+	v := reflect.ValueOf(opts)
+	if v.Kind() == reflect.Ptr && !v.IsNil() {
+		if opts.Token != "" {
+			PhylumToken = opts.Token
+		}
+	}
+
+	// Token wasn't set via options, try to extract from CLI
+	if PhylumToken == "" {
+		PhylumToken, err = GetTokenFromCLI()
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get token from cli: %v\n", err)
+		}
+	}
+
+	pClient := PhylumClient{
+		RefreshToken: PhylumToken,
+		Ctx:          ctx,
+		Client:       client,
+	}
+	if err = pClient.GetAccessToken(); err != nil {
+		return nil, fmt.Errorf("Failed to get access token: %v\n", err)
+	}
+	return &pClient, nil
 }
 
 func (p *PhylumClient) GetAccessToken() error {
@@ -68,28 +105,6 @@ func (p *PhylumClient) GetAccessToken() error {
 	p.OauthToken = *tok
 
 	return nil
-}
-
-func NewClient() *PhylumClient {
-	ctx := context.Background()
-	client := resty.New()
-
-	token, err := GetTokenFromCLI()
-	if err != nil {
-		fmt.Printf("Failed to get token from cli: %v\n", err)
-		return nil
-	}
-
-	pClient := PhylumClient{
-		RefreshToken: token,
-		Ctx:          ctx,
-		Client:       client,
-	}
-	if err = pClient.GetAccessToken(); err != nil {
-		fmt.Printf("Failed to get access token: %v\n", err)
-		return nil
-	}
-	return &pClient
 }
 
 func GetTokenFromCLI() (string, error) {
