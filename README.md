@@ -22,6 +22,7 @@ func main() {
 	if err != nil {
 		fmt.Printf("Failed to list projects: %v\n", err)
 	}
+	_ = projects
 	
 	// Create client with user-supplied oauth refresh token
 	client2, err2 := phylum.NewClient(&phylum.ClientOptions{
