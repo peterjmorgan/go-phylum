@@ -1,22 +1,49 @@
 package phylum
 
+import "unsafe"
+
+/*
+#cgo LDFLAGS: ./libphylum_lockfile_c.a -ldl
+#include <stdlib.h>
+#include <stdio.h>
+#include "lockfile.h"
+
+void myPrintFunction() {
+	printf("Hello from incline C\n");
+}
+*/
+import "C"
+
 import (
 	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/coreos/go-oidc"
+	"github.com/go-resty/resty/v2"
+	"github.com/google/uuid"
+	"golang.org/x/oauth2"
 	"os/exec"
 	"reflect"
 	"strings"
 	"sync"
-
-	"github.com/coreos/go-oidc"
-	"github.com/go-resty/resty/v2"
-	"github.com/google/uuid"
-
-	"golang.org/x/oauth2"
 )
+
+func init() {
+	mystr := C.CString("Hello from C\n")
+	C.myPrintFunction()
+	test := C.GoString(mystr)
+	fmt.Println(test)
+	C.free(unsafe.Pointer(mystr))
+
+	//plpath := C.CString("./package-lock.json")
+	var format *C.lockfile_format
+	//format = (*C.lockfile_format)(C.lockfile_format_for_path(plpath))
+	format = (*C.lockfile_format)(C.lockfile_format_for_path(C.CString("./package-lock.json")))
+	fmt.Printf("%v", format)
+	_ = format
+}
 
 func CheckResponse(resp *resty.Response) *string {
 	var jsonER JsonErrorResponse
