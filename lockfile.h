@@ -17,7 +17,7 @@ extern lockfile_format lockfile_format_from_str(const char* name);
 
 extern lockfile_format lockfile_format_for_path(const char* path);
 
-extern const char* lockfile_format_get_name(lockfile_format format);
+extern char* lockfile_format_get_name(lockfile_format format);
 
 extern int lockfile_format_is_path_lockfile(lockfile_format format, const char* path);
 

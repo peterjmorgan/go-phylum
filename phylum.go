@@ -8,8 +8,10 @@ import "unsafe"
 #include <stdio.h>
 #include "lockfile.h"
 
-void myPrintFunction() {
-	printf("Hello from incline C\n");
+void myPrintFunction(char *input);
+
+void myPrintFunction(char *input) {
+	printf("%s\n", input);
 }
 */
 import "C"
@@ -20,29 +22,32 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/coreos/go-oidc"
-	"github.com/go-resty/resty/v2"
-	"github.com/google/uuid"
-	"golang.org/x/oauth2"
 	"os/exec"
 	"reflect"
 	"strings"
 	"sync"
+
+	"github.com/coreos/go-oidc"
+	"github.com/go-resty/resty/v2"
+	"github.com/google/uuid"
+	"golang.org/x/oauth2"
 )
 
 func init() {
 	mystr := C.CString("Hello from C\n")
-	C.myPrintFunction()
+	C.myPrintFunction(mystr)
 	test := C.GoString(mystr)
 	fmt.Println(test)
 	C.free(unsafe.Pointer(mystr))
 
-	//plpath := C.CString("./package-lock.json")
-	var format *C.lockfile_format
-	//format = (*C.lockfile_format)(C.lockfile_format_for_path(plpath))
-	format = (*C.lockfile_format)(C.lockfile_format_for_path(C.CString("./package-lock.json")))
-	fmt.Printf("%v", format)
-	_ = format
+	plpath := C.CString("package-lock.json")
+	format := (C.lockfile_format)(C.lockfile_format_for_path(plpath))
+	formatName := (*C.char)(C.lockfile_format_get_name(format))
+	d := C.GoString(formatName)
+	fmt.Printf("%s\n", d)
+
+	fmt.Printf("blah\n")
+
 }
 
 func CheckResponse(resp *resty.Response) *string {
