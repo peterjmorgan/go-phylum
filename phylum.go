@@ -1,6 +1,10 @@
 package phylum
 
-import "unsafe"
+import (
+	"log"
+	"os"
+	"unsafe"
+)
 
 /*
 #cgo LDFLAGS: ./libphylum_lockfile_c.a -ldl
@@ -47,6 +51,31 @@ func init() {
 	fmt.Printf("%s\n", d)
 
 	fmt.Printf("blah\n")
+	lockfileData, err := os.ReadFile("package-lock.json")
+	if err != nil {
+		log.Fatalf("failed to read lockfile: %v\n", err)
+	}
+
+	lockfileDataLen := len(lockfileData)
+	bufferLen := C.size_t(lockfileDataLen+1)
+	// buffer := (*C.char)(C.CBytes(lockfileData))
+	// defer C.free(unsafe.Pointer(buffer))
+
+	buffer := (*C.char)(C.calloc(bufferLen, C.sizeof_char))
+	defer C.free(unsafe.Pointer(buffer))
+
+	gBuffer := (*[1 << 30]byte)(unsafe.Pointer(buffer))[:bufferLen:bufferLen]
+
+	for idx, val := range gBuffer {
+		gBuffer[idx] = lockfileData[idx]
+		fmt.Printf("%v", val)
+	}
+
+	//parseResult := (C.lockfile_parse_result)(C.lockfile_format_parse(format, buffer, C.size_t(lockfileDataLen)))
+	parseResult := C.lockfile_format_parse(format, buffer, bufferLen)
+	_ = parseResult
+
+
 
 }
 

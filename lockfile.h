@@ -21,7 +21,7 @@ extern char* lockfile_format_get_name(lockfile_format format);
 
 extern int lockfile_format_is_path_lockfile(lockfile_format format, const char* path);
 
-extern lockfile_parse_result lockfile_format_parse(lockfile_format format, const char* content, size_t content_length);
+extern lockfile_parse_result lockfile_format_parse(lockfile_format format, char* content, size_t content_length);
 
 extern int lockfile_parse_result_is_ok(lockfile_parse_result result);
 
