@@ -6,17 +6,109 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"os"
 	"os/exec"
 	"reflect"
 	"strings"
 	"sync"
+	"unsafe"
 
 	"github.com/coreos/go-oidc"
 	"github.com/go-resty/resty/v2"
 	"github.com/google/uuid"
-
 	"golang.org/x/oauth2"
 )
+
+/*
+#cgo LDFLAGS: -L. -Wl,-rpath,$ORIGIN -lphylum_lockfile_c
+#include <stdlib.h>
+#include <stdio.h>
+#include "lockfile.h"
+
+void myPrintFunction(char *input);
+
+//TODO: remove
+void myPrintFunction(char *input) {
+	//printf("here comes the boom\n");
+	for( int i=0; i<320; i++) {
+		printf("%c", input[i]);
+	}
+}
+*/
+import "C"
+
+func init() {
+	// // mystr := C.CString("Hello from C\n")
+	// // C.myPrintFunction(mystr)
+	// // test := C.GoString(mystr)
+	// // fmt.Println(test)
+	// // C.free(unsafe.Pointer(mystr))
+	//
+	// plpath := C.CString("package-lock.json")
+	// format := (C.lockfile_format)(C.lockfile_format_for_path(plpath))
+	// formatName := (*C.char)(C.lockfile_format_get_name(format))
+	// eco := C.GoString(formatName)
+	// fmt.Printf("%s\n", eco)
+	//
+	// lockfileData, err := os.ReadFile("package-lock.json")
+	// if err != nil {
+	// 	log.Fatalf("failed to read lockfile: %v\n", err)
+	// }
+	//
+	// lockfileDataLen := len(lockfileData)
+	// bufferLen := C.size_t(lockfileDataLen)
+	// buffer := (*C.char)(C.CBytes(lockfileData))
+	// defer C.free(unsafe.Pointer(buffer))
+	//
+	// // buffer := (*C.char)(C.calloc(bufferLen, C.sizeof_char))
+	// // defer C.free(unsafe.Pointer(buffer))
+	//
+	// // gBuffer := (*[1 << 30]byte)(unsafe.Pointer(buffer))[:bufferLen:bufferLen]
+	// // gBuffer := (*C.char)(unsafe.Pointer(&buffer[0]))
+	//
+	// // for _, val := range buffer {
+	// // //	gBuffer[idx] = lockfileData[idx]
+	// // fmt.Printf("%x", val)
+	// // }
+	//
+	// C.myPrintFunction(buffer)
+	//
+	// // parseResult := (C.lockfile_parse_result)(C.lockfile_format_parse(format, buffer, C.size_t(lockfileDataLen)))
+	// parseResult := C.lockfile_format_parse(format, buffer, bufferLen)
+	// defer C.lockfile_parse_result_destroy(parseResult)
+	//
+	// if C.lockfile_parse_result_is_ok(parseResult) != 1 {
+	// 	// TODO: handle error case
+	// }
+	//
+	// lenDeps := (C.size_t)(C.lockfile_parse_result_get_dependencies_len(parseResult))
+	// tempLen := int(lenDeps)
+	// fmt.Printf("tempLen: %v\n", tempLen)
+	//
+	// type dependency struct {
+	// 	Name    string
+	// 	Version string
+	// 	Eco     string
+	// }
+	// dependencies := make([]dependency, 0)
+	// // theDep := C.lockfile_dependency
+	// var theDep C.lockfile_dependency
+	// var i C.size_t
+	// for i = 0; i < lenDeps; i++ {
+	// 	C.lockfile_parse_result_get_dependency(parseResult, i, &theDep)
+	// 	name := C.GoStringN(theDep.name.head, C.int(theDep.name.len))
+	// 	version := C.GoStringN(theDep.version.head, C.int(theDep.version.len))
+	// 	fmt.Printf("%v:%v\n", name, version)
+	// 	dependencies = append(dependencies, dependency{
+	// 		Name:    name,
+	// 		Version: version,
+	// 		Eco:     eco,
+	// 	})
+	// }
+	// fmt.Printf("num deps: %v\n", lenDeps)
+
+}
 
 func CheckResponse(resp *resty.Response) *string {
 	var jsonER JsonErrorResponse
@@ -392,6 +484,89 @@ func (p *PhylumClient) GetAllGroupProjectsByEcosystem(groupName string, ecosyste
 	wg.Wait()
 
 	return result, err
+}
+
+func FixupEocsystem(ecosystem string) (string, error) {
+	switch ecosystem {
+	case "poetry":
+		return "pypi", nil
+	case "pip":
+		return "pypi", nil
+	case "pipenv":
+		return "pypi", nil
+	case "npm":
+		return "npm", nil
+	case "gem":
+		return "rubygems", nil
+	case "yarn":
+		return "npm", nil
+	case "gradle":
+		return "maven", nil
+	case "mvn":
+		return "maven", nil
+	case "nuget":
+		return "nuget", nil
+	default:
+		return "", fmt.Errorf("FixupEcosystem: unhandled case: %v", ecosystem)
+	}
+}
+
+func (p *PhylumClient) ParseLockfile(lockfilePath string) (*[]PackageDescriptor, error) {
+	if _, err := os.Stat(lockfilePath); err != nil {
+		errStr := fmt.Sprintf("failed to stat lockfile: %v - %v\n", lockfilePath, err)
+		log.Fatalf(errStr)
+		return nil, fmt.Errorf(errStr)
+	}
+
+	lockfilePathC := C.CString(lockfilePath)
+	formatC := (C.lockfile_format)(C.lockfile_format_for_path(lockfilePathC))
+	formatNameC := (*C.char)(C.lockfile_format_get_name(formatC))
+	eco := C.GoString(formatNameC)
+
+	fixedEco, err := FixupEocsystem(eco)
+	if err != nil {
+		log.Fatalf("failed to FixupEcosystem(): %v\n", err)
+		return nil, err
+	}
+
+	lockfileData, err := os.ReadFile(lockfilePath)
+	if err != nil {
+		log.Fatalf("failed to read lockfile: %v\n", err)
+		return nil, err
+	}
+
+	lockfileDataLen := len(lockfileData)
+	if lockfileDataLen == 0 {
+		log.Fatalf("lockfile length is zero")
+		return nil, fmt.Errorf("lockfile length is zero")
+	}
+	bufferLenC := C.size_t(lockfileDataLen)
+	bufferC := (*C.char)(C.CBytes(lockfileData))
+	defer C.free(unsafe.Pointer(bufferC))
+
+	parseResultC := C.lockfile_format_parse(formatC, bufferC, bufferLenC)
+	defer C.lockfile_parse_result_destroy(parseResultC)
+
+	if C.lockfile_parse_result_is_ok(parseResultC) != 1 {
+		// TODO: handle error case
+		return nil, fmt.Errorf("Failed to parse lockfile")
+	}
+
+	lenDependenciesC := (C.size_t)(C.lockfile_parse_result_get_dependencies_len(parseResultC))
+	dependencies := make([]PackageDescriptor, 0)
+	var tempDependencyC C.lockfile_dependency
+	for i := C.size_t(0); i < lenDependenciesC; i++ {
+		C.lockfile_parse_result_get_dependency(parseResultC, i, &tempDependencyC)
+		name := C.GoStringN(tempDependencyC.name.head, C.int(tempDependencyC.name.len))
+		version := C.GoStringN(tempDependencyC.version.head, C.int(tempDependencyC.version.len))
+		dependencies = append(dependencies, PackageDescriptor{
+			Name:    name,
+			Version: version,
+			Type:    PackageType(fixedEco),
+		})
+	}
+
+	return &dependencies, nil
 }
 
 func (p *PhylumClient) AnalyzeParsedPackages(projectType string, projectID string, packages *[]PackageDescriptor) (string, error) {
