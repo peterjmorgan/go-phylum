@@ -21,7 +21,7 @@ import (
 )
 
 /*
-#cgo LDFLAGS: -L. -Wl,-rpath,$ORIGIN -lphylum_lockfile_c
+#cgo LDFLAGS: -L${SRCDIR} -Wl,-rpath,$ORIGIN -lphylum_lockfile_c
 #include <stdlib.h>
 #include <stdio.h>
 #include "lockfile.h"
@@ -522,6 +522,12 @@ func (p *PhylumClient) ParseLockfile(lockfilePath string) (*[]PackageDescriptor,
 	formatC := (C.lockfile_format)(C.lockfile_format_for_path(lockfilePathC))
 	formatNameC := (*C.char)(C.lockfile_format_get_name(formatC))
 	eco := C.GoString(formatNameC)
+
+	if eco == "" {
+		errStr := fmt.Sprintf("failed to identify format of lockfile. Likely an issue with the shared object: %v\n")
+		log.Fatalf(errStr)
+		return nil, fmt.Errorf(errStr)
+	}
 
 	fixedEco, err := FixupEocsystem(eco)
 	if err != nil {
