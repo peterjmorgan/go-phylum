@@ -106,6 +106,46 @@ func (p *PhylumClient) GetAccessToken() error {
 	return nil
 }
 
+type AuthStatus struct {
+	Sub               string `json:"sub"`
+	EmailVerified     bool   `json:"email_verified"`
+	Name              string `json:"name"`
+	PreferredUsername string `json:"preferred_username"`
+	GivenName         string `json:"given_name"`
+	FamilyName        string `json:"family_name"`
+	Email             string `json:"email"`
+}
+
+func (p *PhylumClient) GetAuthStatus(token string) (bool, error) {
+	var status AuthStatus
+	var url string = "https://login.phylum.io/realms/phylum/protocol/openid-connect/userinfo"
+
+	resp, err := p.Client.R().
+		SetHeader("accept", "application/json").
+		SetAuthToken(token).
+		Get(url)
+	if resp.StatusCode() != 200 {
+		return false, nil
+	}
+	if err != nil {
+		fmt.Printf("failed to GetAuthStatus: %v\n", err)
+		return false, errors.New("failed to GetAuthStatus")
+	}
+
+	body := resp.Body()
+	err = json.Unmarshal(body, &status)
+	if err != nil {
+		fmt.Printf("GetGroups(): failed to parse response: %v\n", err)
+		return false, err
+	}
+
+	if status.EmailVerified == true {
+		return true, nil
+	} else {
+		return false, nil
+	}
+}
+
 func GetTokenFromCLI() (string, error) {
 	var stdErrBytes bytes.Buffer
 	var phylumTokenArgs = []string{"auth", "token"}
@@ -393,31 +433,6 @@ func (p *PhylumClient) GetAllGroupProjectsByEcosystem(groupName string, ecosyste
 	return result, err
 }
 
-func FixupEocsystem(ecosystem string) (string, error) {
-	switch ecosystem {
-	case "poetry":
-		return "pypi", nil
-	case "pip":
-		return "pypi", nil
-	case "pipenv":
-		return "pypi", nil
-	case "npm":
-		return "npm", nil
-	case "gem":
-		return "rubygems", nil
-	case "yarn":
-		return "npm", nil
-	case "gradle":
-		return "maven", nil
-	case "mvn":
-		return "maven", nil
-	case "nuget":
-		return "nuget", nil
-	default:
-		return "", fmt.Errorf("FixupEcosystem: unhandled case: %v", ecosystem)
-	}
-}
-
 func (p *PhylumClient) AnalyzeParsedPackages(projectType string, projectID string, packages *[]PackageDescriptor) (string, error) {
 	var respSPR SubmitPackageResponse
 	var url string = "https://api.phylum.io/api/v0/data/jobs"
@@ -481,10 +496,10 @@ func (p *PhylumClient) ParseLockfile(lockfilePath string) (*[]PackageDescriptor,
 		return nil, fmt.Errorf("lockfilePath: %v is not a file", lockfilePath)
 	}
 	var packages []PackageDescriptor
-
-	url := "http://parse.phylum.io"
+	url := "https://parse.phylum.io"
 
 	resp, err := p.Client.R().
+		SetAuthToken(p.OauthToken.AccessToken).
 		SetFile("lockfile", lockfilePath).
 		Post(url)
 	test := CheckResponse(resp)

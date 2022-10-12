@@ -1,6 +1,7 @@
 package phylum
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"os/exec"
@@ -378,6 +379,8 @@ func TestPhylumClient_GetJob(t *testing.T) {
 
 func TestPhylumClient_ParseLockfile1(t *testing.T) {
 	p, _ := NewClient(&ClientOptions{})
+	p.Client.SetProxy("http://localhost:8080")
+	p.Client.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
 
 	type args struct {
 		lockfilePath string
@@ -413,6 +416,37 @@ func TestPhylumClient_ParseLockfile1(t *testing.T) {
 			}
 			if len(*got) != tt.wantLen {
 				t.Errorf("ParseLockfile(): len of parsed packages: got = %v, want %v", len(*got), tt.wantLen)
+			}
+		})
+	}
+}
+
+func TestPhylumClient_GetAuthStatus(t *testing.T) {
+	p, _ := NewClient(&ClientOptions{})
+	//p.Client.SetProxy("http://localhost:8080")
+	//p.Client.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
+
+	type args struct {
+		token string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    bool
+		wantErr bool
+	}{
+		{"one", args{""}, true, false},
+		{"two", args{""}, true, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := p.GetAuthStatus(tt.args.token)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetAuthStatus() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("GetAuthStatus() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
