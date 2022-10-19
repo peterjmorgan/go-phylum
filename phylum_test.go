@@ -393,7 +393,6 @@ func TestPhylumClient_ParseLockfile1(t *testing.T) {
 		wantErr bool
 	}{
 		{"package-lock", args{"test_lockfiles/package-lock.json"}, nil, 52, false},
-		// This lockfile fails parsing at the moment
 		{"package-lock-v6", args{"test_lockfiles/package-lock-v6.json"}, nil, 17, false},
 		{"requirements.txt", args{"test_lockfiles/requirements.txt"}, nil, 131, false},
 		{"poetry.lock", args{"test_lockfiles/poetry.lock"}, nil, 45, false},
@@ -402,10 +401,10 @@ func TestPhylumClient_ParseLockfile1(t *testing.T) {
 		{"pipfile.lock", args{"test_lockfiles/Pipfile.lock"}, nil, 27, false},
 		{"gradle.lockfile", args{"test_lockfiles/gradle.lockfile"}, nil, 6, false},
 		{"effective-pom", args{"test_lockfiles/effective-pom.xml"}, nil, 16, false},
-		// workspace-effective-pom Fails currently
 		{"workspace-effective-pom", args{"test_lockfiles/workspace-effective-pom.xml"}, nil, 88, false},
 		{"Calculator csproj", args{"test_lockfiles/Calculator.csproj"}, nil, 2, false},
 		{"sample csproj", args{"test_lockfiles/sample.csproj"}, nil, 5, false},
+		{"bad1", args{"test_lockfiles/sample.csproj"}, nil, 5, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -447,6 +446,32 @@ func TestPhylumClient_GetAuthStatus(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("GetAuthStatus() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPhylumClient_GetAllProjects(t *testing.T) {
+	p, _ := NewClient(&ClientOptions{})
+	//p.Client.SetProxy("http://localhost:8080")
+	//p.Client.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
+
+	tests := []struct {
+		name    string
+		want    []*ProjectResponse
+		wantErr bool
+	}{
+		{"one", nil, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := p.GetAllProjects()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetAllProjects() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetAllProjects() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

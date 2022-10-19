@@ -161,7 +161,8 @@ func GetTokenFromCLI() (string, error) {
 }
 
 func (p *PhylumClient) GetUserGroups() (*ListUserGroupsResponse, error) {
-	var userGroups *ListUserGroupsResponse
+	//var userGroups *ListUserGroupsResponse
+	userGroups := new(ListUserGroupsResponse)
 
 	var url string = "https://api.phylum.io/api/v0/groups"
 
@@ -302,6 +303,31 @@ func (p *PhylumClient) DeleteProject(projectId string) (*ProjectSummaryResponse,
 	return &respPSR, nil
 }
 
+func (p *PhylumClient) GetProject(projectID string) (*ProjectResponse, error) {
+	var result ProjectResponse
+
+	url := fmt.Sprintf("https://api.phylum.io/api/v0/data/projects/%s", projectID)
+	resp, err := p.Client.R().
+		SetHeader("accept", "application/json").
+		SetAuthToken(p.OauthToken.AccessToken).
+		Get(url)
+
+	test := CheckResponse(resp)
+	if test != nil || err != nil {
+		fmt.Printf("failed to get projects: %v\n", err)
+		return nil, errors.New(*test)
+	}
+
+	body := resp.Body()
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		fmt.Printf("GetProject(): failed to parse response: %v\n", err)
+	}
+
+	return &result, nil
+}
+
+// TODO: this should be folded into GetProject() with GetProjectOpts struct
 func (p *PhylumClient) GetGroupProject(groupName string, projectID string) (*ProjectResponse, error) {
 	var result ProjectResponse
 
@@ -326,6 +352,7 @@ func (p *PhylumClient) GetGroupProject(groupName string, projectID string) (*Pro
 	return &result, nil
 }
 
+// TODO: this should be folded into ListProjects() with an optional struct
 func (p *PhylumClient) ListGroupProjects(groupName string) ([]ProjectSummaryResponse, error) {
 	var result []ProjectSummaryResponse
 	url := fmt.Sprintf("https://api.phylum.io/api/v0/groups/%s/projects", groupName)
@@ -348,6 +375,72 @@ func (p *PhylumClient) ListGroupProjects(groupName string) ([]ProjectSummaryResp
 	}
 
 	return result, nil
+}
+
+// Default should get all projects in all groups
+func (p *PhylumClient) GetAllProjects() ([]*ProjectResponse, error) {
+	var result []*ProjectResponse
+	var allProjectList []ProjectSummaryResponse
+
+	// Get all group projects into a slice
+	groups, err := p.GetUserGroups()
+	if err != nil {
+		fmt.Printf("Failed to GetUserGroups(): %v\n", err)
+		return nil, err
+	}
+
+	for _, group := range groups.Groups {
+		groupProjectList, err := p.ListGroupProjects(group.GroupName)
+		if err != nil {
+			fmt.Printf("Failed to ListGroupProjects: %v\n", err)
+			return nil, err
+		}
+		allProjectList = append(allProjectList, groupProjectList...)
+	}
+
+	projectList, err := p.ListProjects()
+	if err != nil {
+		fmt.Printf("Failed to ListProjects(): %v\n", err)
+		return nil, err
+	}
+
+	allProjectList = append(allProjectList, projectList...)
+
+	chRecv := make(chan *ProjectResponse)
+	var wg sync.WaitGroup
+
+	for _, proj := range allProjectList {
+		wg.Add(1)
+		go func(inProj ProjectSummaryResponse) {
+			defer wg.Done()
+			var temp *ProjectResponse
+
+			if inProj.GroupName != nil {
+				temp, err = p.GetGroupProject(*inProj.GroupName, inProj.Id.String())
+				if err != nil {
+					fmt.Printf("Failed to GetGroupProject: %v\n", err)
+					return
+				}
+			} else {
+				temp, err = p.GetProject(inProj.Id.String())
+				if err != nil {
+					fmt.Printf("Failed to GetProject: %v\n", err)
+					return
+				}
+			}
+			chRecv <- temp
+		}(proj)
+	}
+
+	go func() {
+		for res := range chRecv {
+			result = append(result, res)
+		}
+		close(chRecv)
+	}()
+	wg.Wait()
+
+	return result, err
 }
 
 func (p *PhylumClient) GetAllGroupProjects(groupName string) ([]*ProjectResponse, error) {
