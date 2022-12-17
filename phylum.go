@@ -41,6 +41,7 @@ type PhylumClient struct {
 	Ctx          context.Context
 	Client       *resty.Client
 	Groups       ListUserGroupsResponse
+	AllProjects  []ProjectSummaryResponse
 }
 
 func NewClient(opts *ClientOptions) (*PhylumClient, error) {
@@ -135,7 +136,7 @@ func (p *PhylumClient) GetAuthStatus(token string) (bool, error) {
 	body := resp.Body()
 	err = json.Unmarshal(body, &status)
 	if err != nil {
-		fmt.Printf("GetGroups(): failed to parse response: %v\n", err)
+		fmt.Printf("GetAuthStatus(): failed to parse response: %v\n", err)
 		return false, err
 	}
 
@@ -160,8 +161,9 @@ func GetTokenFromCLI() (string, error) {
 	return strings.TrimSuffix(string(output), "\n"), nil
 }
 
+// Get Phylum groups for which the user is a member or owner
+// Write the result to the PhylumClient struct
 func (p *PhylumClient) GetUserGroups() (*ListUserGroupsResponse, error) {
-	//var userGroups *ListUserGroupsResponse
 	userGroups := new(ListUserGroupsResponse)
 
 	var url string = "https://api.phylum.io/api/v0/groups"
@@ -183,6 +185,8 @@ func (p *PhylumClient) GetUserGroups() (*ListUserGroupsResponse, error) {
 		fmt.Printf("GetGroups(): failed to parse response: %v\n", err)
 		return nil, err
 	}
+
+	p.Groups = *userGroups
 
 	return userGroups, nil
 }
@@ -273,7 +277,7 @@ func checkProjectId(projectId string) error {
 	_, err := uuid.Parse(projectId)
 	if err != nil {
 		fmt.Printf("Error: must provide a valid GUID for project ID")
-		return errors.New("not a guid")
+		return errors.New("ProjectID is not a guid")
 	}
 	return nil
 }
@@ -314,7 +318,7 @@ func (p *PhylumClient) GetProject(projectID string) (*ProjectResponse, error) {
 
 	test := CheckResponse(resp)
 	if test != nil || err != nil {
-		fmt.Printf("failed to get projects: %v\n", err)
+		fmt.Printf("GetProject(): failed to get projects: %v\n", err)
 		return nil, errors.New(*test)
 	}
 
@@ -375,6 +379,38 @@ func (p *PhylumClient) ListGroupProjects(groupName string) ([]ProjectSummaryResp
 	}
 
 	return result, nil
+}
+
+func (p *PhylumClient) ListAllProjects() ([]ProjectSummaryResponse, error) {
+	var allProjects []ProjectSummaryResponse
+
+	// Get all group projects into a slice
+	groups, err := p.GetUserGroups()
+	if err != nil {
+		fmt.Printf("Failed to GetUserGroups(): %v\n", err)
+		return nil, err
+	}
+
+	for _, group := range groups.Groups {
+		groupProjectList, err := p.ListGroupProjects(group.GroupName)
+		if err != nil {
+			fmt.Printf("Failed to ListGroupProjects: %v\n", err)
+			return nil, err
+		}
+		allProjects = append(allProjects, groupProjectList...)
+	}
+
+	projectList, err := p.ListProjects()
+	if err != nil {
+		fmt.Printf("Failed to ListProjects(): %v\n", err)
+		return nil, err
+	}
+
+	allProjects = append(allProjects, projectList...)
+
+	p.AllProjects = allProjects
+
+	return allProjects, nil
 }
 
 // Default should get all projects in all groups
@@ -584,6 +620,8 @@ func (p *PhylumClient) GetJobVerbose(jobID string) (*JobStatusResponseForPackage
 	return &jobResponse, &jsonData, nil
 }
 
+// ParseLockfile parses a lockfile into a struct that can be submitted for analysis.
+// It takes the path to a lockfile as input, and returns a pointer to a slice of PackageDescriptors
 func (p *PhylumClient) ParseLockfile(lockfilePath string) (*[]PackageDescriptor, error) {
 	if _, err := os.Stat(lockfilePath); errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("lockfilePath: %v is not a file", lockfilePath)
@@ -607,4 +645,49 @@ func (p *PhylumClient) ParseLockfile(lockfilePath string) (*[]PackageDescriptor,
 		return nil, err
 	}
 	return &packages, nil
+}
+
+func (p *PhylumClient) GetProjectPreferences(projectID string) (*ProjectPreferencesResponse, error) {
+	var result ProjectPreferencesResponse
+
+	url := fmt.Sprintf("https://api.phylum.io/api/v0/preferences/project/%s", projectID)
+	resp, err := p.Client.R().
+		SetHeader("accept", "application/json").
+		SetAuthToken(p.OauthToken.AccessToken).
+		Get(url)
+
+	test := CheckResponse(resp)
+	if test != nil || err != nil {
+		fmt.Printf("failed to get projects: %v\n", err)
+		return nil, errors.New(*test)
+	}
+
+	body := resp.Body()
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		fmt.Printf("GetProjects(): failed to parse response: %v\n", err)
+	}
+
+	return &result, nil
+}
+
+// GetProjectIssues gets the issues for a project. Only returns issues that are not ignored/suppressed
+func (p *PhylumClient) GetProjectIssues(projectId string) ([]IssuesListItem, error) {
+	var issues []IssuesListItem
+	if err := checkProjectId(projectId); err != nil {
+		return nil, err
+	}
+
+	projectResponse, err := p.GetProject(projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, elem := range projectResponse.Issues {
+		if elem.Ignored == "false" {
+			issues = append(issues, elem)
+		}
+	}
+
+	return issues, nil
 }

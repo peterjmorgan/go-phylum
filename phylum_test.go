@@ -128,6 +128,7 @@ func TestPhylumClient_GetGroupProject(t *testing.T) {
 		wantErr bool
 	}{
 		{"one", args{"test2", "85e3142f-efc9-41fc-b004-ca570df89af8"}, nil, false},
+		{"showcase3", args{"demo", "dd937163-c655-4ee2-bb16-32fbc48a75f7"}, nil, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -472,6 +473,56 @@ func TestPhylumClient_GetAllProjects(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetAllProjects() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPhylumClient_GetProjectPreferences(t *testing.T) {
+	p, _ := NewClient(&ClientOptions{})
+	type args struct {
+		projectID string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *ProjectPreferencesResponse
+		wantErr bool
+	}{
+		{"one", args{"dd937163-c655-4ee2-bb16-32fbc48a75f7"}, nil, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := p.GetProjectPreferences(tt.args.projectID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetProjectPreferences() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetProjectPreferences() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPhylumClient_ListAllProjects(t *testing.T) {
+	p, _ := NewClient(&ClientOptions{})
+	tests := []struct {
+		name    string
+		want    []ProjectSummaryResponse
+		wantErr bool
+	}{
+		{"one", nil, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := p.ListAllProjects()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ListAllProjects() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ListAllProjects() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
