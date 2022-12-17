@@ -504,3 +504,26 @@ func TestPhylumClient_GetProjectPreferences(t *testing.T) {
 		})
 	}
 }
+
+func TestPhylumClient_ListAllProjects(t *testing.T) {
+	p, _ := NewClient(&ClientOptions{})
+	tests := []struct {
+		name    string
+		want    []ProjectSummaryResponse
+		wantErr bool
+	}{
+		{"one", nil, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := p.ListAllProjects()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ListAllProjects() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ListAllProjects() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
