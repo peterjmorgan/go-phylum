@@ -671,7 +671,7 @@ func (p *PhylumClient) GetProjectPreferences(projectID string) (*ProjectPreferen
 	return &result, nil
 }
 
-// GetProjectIssues gets the issues for a project. Only returns issues that are not suppressed
+// GetProjectIssues gets the issues for a project. Only returns issues that are not ignored/suppressed
 func (p *PhylumClient) GetProjectIssues(projectId string) ([]IssuesListItem, error) {
 	var issues []IssuesListItem
 	if err := checkProjectId(projectId); err != nil {
