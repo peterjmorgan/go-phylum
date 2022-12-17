@@ -584,6 +584,8 @@ func (p *PhylumClient) GetJobVerbose(jobID string) (*JobStatusResponseForPackage
 	return &jobResponse, &jsonData, nil
 }
 
+// ParseLockfile parses a lockfile into a struct that can be submitted for analysis.
+// It takes the path to a lockfile as input, and returns a pointer to a slice of PackageDescriptors
 func (p *PhylumClient) ParseLockfile(lockfilePath string) (*[]PackageDescriptor, error) {
 	if _, err := os.Stat(lockfilePath); errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("lockfilePath: %v is not a file", lockfilePath)
@@ -607,4 +609,28 @@ func (p *PhylumClient) ParseLockfile(lockfilePath string) (*[]PackageDescriptor,
 		return nil, err
 	}
 	return &packages, nil
+}
+
+func (p *PhylumClient) GetProjectPreferences(projectID string) (*ProjectPreferencesResponse, error) {
+	var result ProjectPreferencesResponse
+
+	url := fmt.Sprintf("https://api.phylum.io/api/v0/preferences/project/%s", projectID)
+	resp, err := p.Client.R().
+		SetHeader("accept", "application/json").
+		SetAuthToken(p.OauthToken.AccessToken).
+		Get(url)
+
+	test := CheckResponse(resp)
+	if test != nil || err != nil {
+		fmt.Printf("failed to get projects: %v\n", err)
+		return nil, errors.New(*test)
+	}
+
+	body := resp.Body()
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		fmt.Printf("GetProjects(): failed to parse response: %v\n", err)
+	}
+
+	return &result, nil
 }
