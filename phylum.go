@@ -308,7 +308,45 @@ func (p *PhylumClient) DeleteProject(projectId string) (*ProjectSummaryResponse,
 	return &respPSR, nil
 }
 
+// GetProject Gets a project based on a Phylum project ID. It can get user or group projects.
 func (p *PhylumClient) GetProject(projectID string) (*ProjectResponse, error) {
+	var returnProject *ProjectResponse
+
+	projects, err := p.ListAllProjects()
+	if err != nil {
+		return nil, err
+	}
+
+	// Find the project
+	var targetProject ProjectSummaryResponse
+	for _, proj := range projects {
+		if proj.Id.String() == projectID {
+			targetProject = proj
+		}
+	}
+	if targetProject.Id.String() == "" {
+		return nil, fmt.Errorf("GetProject: failed to find project with ID: %v\n", projectID)
+	}
+
+	if *targetProject.GroupName != "" {
+		// group project
+		returnProject, err = p.GetGroupProject(*targetProject.GroupName, targetProject.Id.String())
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// user project
+		returnProject, err = p.GetUserProject(targetProject.Id.String())
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return returnProject, nil
+}
+
+// GetUserProject Gets a user project based on a Phylum project ID.
+func (p *PhylumClient) GetUserProject(projectID string) (*ProjectResponse, error) {
 	var result ProjectResponse
 
 	url := fmt.Sprintf("https://api.phylum.io/api/v0/data/projects/%s", projectID)
@@ -319,14 +357,14 @@ func (p *PhylumClient) GetProject(projectID string) (*ProjectResponse, error) {
 
 	test := CheckResponse(resp)
 	if test != nil || err != nil {
-		fmt.Printf("GetProject(): failed to get projects: %v\n", err)
+		fmt.Printf("GetUserProject(): failed to get projects: %v\n", err)
 		return nil, errors.New(*test)
 	}
 
 	body := resp.Body()
 	err = json.Unmarshal(body, &result)
 	if err != nil {
-		fmt.Printf("GetProject(): failed to parse response: %v\n", err)
+		fmt.Printf("GetUserProject(): failed to parse response: %v\n", err)
 	}
 
 	return &result, nil
@@ -382,6 +420,11 @@ func (p *PhylumClient) ListGroupProjects(groupName string) ([]ProjectSummaryResp
 	return result, nil
 }
 
+// type MetaProject struct {
+// 	Project ProjectSummaryResponse
+// 	Group string
+// }
+
 func (p *PhylumClient) ListAllProjects() ([]ProjectSummaryResponse, error) {
 	var allProjects []ProjectSummaryResponse
 
@@ -398,18 +441,32 @@ func (p *PhylumClient) ListAllProjects() ([]ProjectSummaryResponse, error) {
 			fmt.Printf("Failed to ListGroupProjects: %v\n", err)
 			return nil, err
 		}
+		// for _, gp := range groupProjectList {
+		// 	newMetaProject := MetaProject{
+		// 		Project: gp,
+		// 		Group:   group.GroupName,
+		// 	}
+		// 	allProjects = append(allProjects, newMetaProject)
+		// }
 		allProjects = append(allProjects, groupProjectList...)
 	}
 
+	// Add User Projects to slice
 	projectList, err := p.ListProjects()
 	if err != nil {
 		fmt.Printf("Failed to ListProjects(): %v\n", err)
 		return nil, err
 	}
 
+	// for _, up := range projectList {
+	// 	newProject := MetaProject{
+	// 		Project: up,
+	// 	}
+	// 	allProjects = append(allProjects, newProject)
+	// }
 	allProjects = append(allProjects, projectList...)
 
-	p.AllProjects = allProjects
+	//p.AllProjects = allProjects
 
 	return allProjects, nil
 }
@@ -459,9 +516,9 @@ func (p *PhylumClient) GetAllProjects() ([]*ProjectResponse, error) {
 					return
 				}
 			} else {
-				temp, err = p.GetProject(inProj.Id.String())
+				temp, err = p.GetUserProject(inProj.Id.String())
 				if err != nil {
-					fmt.Printf("Failed to GetProject: %v\n", err)
+					fmt.Printf("Failed to GetUserProject: %v\n", err)
 					return
 				}
 			}
@@ -517,6 +574,7 @@ func (p *PhylumClient) GetAllGroupProjects(groupName string) ([]*ProjectResponse
 	return result, err
 }
 
+// TODO: should be removed
 func (p *PhylumClient) GetAllGroupProjectsByEcosystem(groupName string, ecosystem string) ([]*ProjectResponse, error) {
 	var result []*ProjectResponse
 	var targetList []ProjectSummaryResponse
@@ -679,7 +737,7 @@ func (p *PhylumClient) GetProjectIssues(projectId string) ([]IssuesListItem, err
 		return nil, err
 	}
 
-	projectResponse, err := p.GetProject(projectId)
+	projectResponse, err := p.GetUserProject(projectId)
 	if err != nil {
 		return nil, err
 	}
