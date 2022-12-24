@@ -1,11 +1,12 @@
 package phylum
 
 import (
-	"github.com/pkg/errors"
 	"regexp"
+
+	"github.com/pkg/errors"
 )
 
-func extractRemediation(issue Issue) (string, error) {
+func ExtractRemediation(issue Issue) (string, error) {
 	var result string
 	desc := issue.Description
 

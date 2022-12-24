@@ -6,15 +6,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/coreos/go-oidc"
-	"github.com/go-resty/resty/v2"
-	"github.com/google/uuid"
-	"golang.org/x/oauth2"
 	"os"
 	"os/exec"
 	"reflect"
 	"strings"
 	"sync"
+
+	"github.com/coreos/go-oidc"
+	"github.com/go-resty/resty/v2"
+	"github.com/google/uuid"
+	"golang.org/x/oauth2"
 )
 
 func CheckResponse(resp *resty.Response) *string {
@@ -161,7 +162,7 @@ func GetTokenFromCLI() (string, error) {
 	return strings.TrimSuffix(string(output), "\n"), nil
 }
 
-// Get Phylum groups for which the user is a member or owner
+// GetUserGroups Get Phylum groups for which the user is a member or owner
 // Write the result to the PhylumClient struct
 func (p *PhylumClient) GetUserGroups() (*ListUserGroupsResponse, error) {
 	userGroups := new(ListUserGroupsResponse)
@@ -273,7 +274,7 @@ func (p *PhylumClient) CreateProject(name string, opts *ProjectOpts) (*ProjectSu
 	return &respPSR, nil
 }
 
-func checkProjectId(projectId string) error {
+func CheckProjectId(projectId string) error {
 	_, err := uuid.Parse(projectId)
 	if err != nil {
 		fmt.Printf("Error: must provide a valid GUID for project ID")
@@ -285,7 +286,7 @@ func checkProjectId(projectId string) error {
 func (p *PhylumClient) DeleteProject(projectId string) (*ProjectSummaryResponse, error) {
 	var respPSR ProjectSummaryResponse
 
-	if err := checkProjectId(projectId); err != nil {
+	if err := CheckProjectId(projectId); err != nil {
 		return nil, err
 	}
 
@@ -674,7 +675,7 @@ func (p *PhylumClient) GetProjectPreferences(projectID string) (*ProjectPreferen
 // GetProjectIssues gets the issues for a project. Only returns issues that are not ignored/suppressed
 func (p *PhylumClient) GetProjectIssues(projectId string) ([]IssuesListItem, error) {
 	var issues []IssuesListItem
-	if err := checkProjectId(projectId); err != nil {
+	if err := CheckProjectId(projectId); err != nil {
 		return nil, err
 	}
 
