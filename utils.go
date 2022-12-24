@@ -6,7 +6,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func ExtractRemediation(issue Issue) (string, error) {
+func ExtractRemediation(issue IssuesListItem) (string, error) {
 	var result string
 	desc := issue.Description
 
