@@ -17,8 +17,12 @@ func ExtractRemediation(issue IssuesListItem) (string, error) {
 		return "", errors.New("No description found")
 	}
 
-	start := recPat.FindStringIndex(desc)[0]
-	result = desc[start:]
+	start := recPat.FindStringIndex(desc)//[0]
+	if len(start) > 0 {
+		offset := start[0]
+		result = desc[offset:]
+	}
+	//result = desc[start:]
 
 	return result, nil
 }
