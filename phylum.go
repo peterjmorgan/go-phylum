@@ -768,7 +768,7 @@ func (p *PhylumClient) GetProjectIssues(projectId string) ([]IssuesListItem, err
 		return nil, err
 	}
 
-	projectResponse, err := p.GetUserProject(projectId)
+	projectResponse, err := p.GetProject(projectId)
 	if err != nil {
 		return nil, err
 	}
