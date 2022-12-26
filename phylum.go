@@ -173,14 +173,16 @@ func GetApiUri(opts *ClientOptions) string {
 	var host string
 
 	// if p.ApiUri is set, the user is targeting an on-prem environment
-	if *opts.ApiHost != "" {
+	if opts.ApiHost != nil {
 		host = *opts.ApiHost
 	} else {
 		host = "api.phylum.io"
 	}
 
-	if *opts.ApiNoTLS == true {
-		scheme = "http"
+	if opts.ApiNoTLS != nil {
+		if *opts.ApiNoTLS == true {
+			scheme = "http"
+		}
 	}
 
 	returnVal = fmt.Sprintf("%s://%s/api/v0", scheme, host)
