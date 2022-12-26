@@ -45,9 +45,9 @@ func CheckResponse(resp *resty.Response) *string {
 }
 
 type ClientOptions struct {
-	Token    string // Phylum token
-	ApiHost  string // Phylum API Hostname
-	ApiNoTLS bool   // Disable TLS to Phylum API endpoint
+	Token    string  // Phylum token
+	ApiHost  *string // Phylum API Hostname
+	ApiNoTLS *bool   // Disable TLS to Phylum API endpoint
 }
 
 type PhylumClient struct {
@@ -173,13 +173,13 @@ func GetApiUri(opts *ClientOptions) string {
 	var host string
 
 	// if p.ApiUri is set, the user is targeting an on-prem environment
-	if opts.ApiHost != "" {
-		host = opts.ApiHost
+	if *opts.ApiHost != "" {
+		host = *opts.ApiHost
 	} else {
 		host = "api.phylum.io"
 	}
 
-	if opts.ApiNoTLS == true {
+	if *opts.ApiNoTLS == true {
 		scheme = "http"
 	}
 
