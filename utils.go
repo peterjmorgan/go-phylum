@@ -1,7 +1,11 @@
 package phylum
 
 import (
+	"bytes"
+	"fmt"
+	"os/exec"
 	"regexp"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -25,4 +29,18 @@ func ExtractRemediation(issue IssuesListItem) (string, error) {
 	//result = desc[start:]
 
 	return result, nil
+}
+
+func GetTokenFromCLI() (string, error) {
+	var stdErrBytes bytes.Buffer
+	var phylumTokenArgs = []string{"auth", "token"}
+	phylumTokenCmd := exec.Command("phylum", phylumTokenArgs...)
+	phylumTokenCmd.Stderr = &stdErrBytes
+	output, err := phylumTokenCmd.Output()
+	stdErrString := stdErrBytes.String()
+	if err != nil {
+		fmt.Printf("error running phylum auth token: %v\n", err)
+		fmt.Printf("stderr: %v\n", stdErrString)
+	}
+	return strings.TrimSuffix(string(output), "\n"), nil
 }

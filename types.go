@@ -667,7 +667,7 @@ type JsonErrorResponse struct {
 		Description string `json:"description"`
 
 		// A unique ID for this error.
-		ErrorId openapi_types.UUID `json:"error_id"`
+		ErrorId string `json:"error_id"`
 
 		// A reason for the error.
 		Reason string `json:"reason"`

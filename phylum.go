@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"golang.org/x/sync/semaphore"
 	"os"
-	"os/exec"
 	"reflect"
 	"strings"
 	"sync"
@@ -20,20 +20,34 @@ import (
 
 func CheckResponse(resp *resty.Response) *string {
 	var jsonER JsonErrorResponse
+	var retString string
 
 	if resp.IsError() {
-		err := json.Unmarshal(resp.Body(), &jsonER)
-		if err != nil {
-			fmt.Printf("failed to parse json: %v\n", err)
+		respBody := string(resp.Body())
+		switch resp.StatusCode() {
+		case 503:
+			if strings.Contains(respBody, "upstream connect error or disconnect/reset before headers") {
+				// Likely Rate Limiting
+				retString = "503 - Rate Limited"
+			} else {
+				retString = respBody
+			}
+		default:
+			err := json.Unmarshal(resp.Body(), &jsonER)
+			if err != nil {
+				fmt.Printf("CheckResponse: failed to parse json: %v\n", err)
+			}
+			retString = fmt.Sprintf("%v - %v\n", jsonER.Error.Code, jsonER.Error.Description)
 		}
-		retString := fmt.Sprintf("%v - %v\n", jsonER.Error.Code, jsonER.Error.Description)
 		return &retString
 	}
 	return nil
 }
 
 type ClientOptions struct {
-	Token string
+	Token    string // Phylum token
+	ApiHost  string // Phylum API Hostname
+	ApiNoTLS bool   // Disable TLS to Phylum API endpoint
 }
 
 type PhylumClient struct {
@@ -43,11 +57,13 @@ type PhylumClient struct {
 	Client       *resty.Client
 	Groups       ListUserGroupsResponse
 	AllProjects  []ProjectSummaryResponse
+	ApiUrl       string
 }
 
 func NewClient(opts *ClientOptions) (*PhylumClient, error) {
 	var PhylumToken string = ""
 	var err error
+	var apiUrl string
 
 	ctx := context.Background()
 	client := resty.New()
@@ -67,10 +83,13 @@ func NewClient(opts *ClientOptions) (*PhylumClient, error) {
 		}
 	}
 
+	apiUrl = GetApiUri(opts)
+
 	pClient := PhylumClient{
 		RefreshToken: PhylumToken,
 		Ctx:          ctx,
 		Client:       client,
+		ApiUrl:       apiUrl,
 	}
 	if err = pClient.GetAccessToken(); err != nil {
 		return nil, fmt.Errorf("Failed to get access token: %v\n", err)
@@ -148,18 +167,25 @@ func (p *PhylumClient) GetAuthStatus(token string) (bool, error) {
 	}
 }
 
-func GetTokenFromCLI() (string, error) {
-	var stdErrBytes bytes.Buffer
-	var phylumTokenArgs = []string{"auth", "token"}
-	phylumTokenCmd := exec.Command("phylum", phylumTokenArgs...)
-	phylumTokenCmd.Stderr = &stdErrBytes
-	output, err := phylumTokenCmd.Output()
-	stdErrString := stdErrBytes.String()
-	if err != nil {
-		fmt.Printf("error running phylum auth token: %v\n", err)
-		fmt.Printf("stderr: %v\n", stdErrString)
+func GetApiUri(opts *ClientOptions) string {
+	var returnVal string
+	var scheme string = "https"
+	var host string
+
+	// if p.ApiUri is set, the user is targeting an on-prem environment
+	if opts.ApiHost != "" {
+		host = opts.ApiHost
+	} else {
+		host = "api.phylum.io"
 	}
-	return strings.TrimSuffix(string(output), "\n"), nil
+
+	if opts.ApiNoTLS == true {
+		scheme = "http"
+	}
+
+	returnVal = fmt.Sprintf("%s://%s/api/v0", scheme, host)
+
+	return returnVal
 }
 
 // GetUserGroups Get Phylum groups for which the user is a member or owner
@@ -167,7 +193,8 @@ func GetTokenFromCLI() (string, error) {
 func (p *PhylumClient) GetUserGroups() (*ListUserGroupsResponse, error) {
 	userGroups := new(ListUserGroupsResponse)
 
-	var url string = "https://api.phylum.io/api/v0/groups"
+	//var url string = "https://api.phylum.io/api/v0/groups"
+	url := fmt.Sprintf("%s/groups", p.ApiUrl)
 
 	resp, err := p.Client.R().
 		SetHeader("accept", "application/json").
@@ -193,6 +220,8 @@ func (p *PhylumClient) GetUserGroups() (*ListUserGroupsResponse, error) {
 }
 
 func (p *PhylumClient) GetHealth() (bool, error) {
+	url := fmt.Sprintf("%s/health", p.ApiUrl)
+
 	client := resty.New()
 	token, err := GetTokenFromCLI()
 	if err != nil {
@@ -203,7 +232,7 @@ func (p *PhylumClient) GetHealth() (bool, error) {
 	resp, err := client.R().
 		SetHeader("accept", "application/json").
 		SetAuthToken(token).
-		Get("https://api.phylum.io/api/v0/health")
+		Get(url)
 	if err != nil {
 		fmt.Printf("failed to get health")
 	}
@@ -216,7 +245,8 @@ func (p *PhylumClient) GetHealth() (bool, error) {
 
 func (p *PhylumClient) ListProjects() ([]ProjectSummaryResponse, error) {
 	var temp []ProjectSummaryResponse
-	var url string = "https://api.phylum.io/api/v0/data/projects/overview"
+	//var url string = "https://api.phylum.io/api/v0/data/projects/overview"
+	url := fmt.Sprintf("%s/data/projects/overview", p.ApiUrl)
 
 	resp, err := p.Client.R().
 		SetHeader("accept", "application/json").
@@ -245,7 +275,8 @@ type ProjectOpts struct {
 
 func (p *PhylumClient) CreateProject(name string, opts *ProjectOpts) (*ProjectSummaryResponse, error) {
 	var respPSR ProjectSummaryResponse
-	var url string = "https://api.phylum.io/api/v0/data/projects"
+	//var url string = "https://api.phylum.io/api/v0/data/projects"
+	url := fmt.Sprintf("%s/data/projects", p.ApiUrl)
 
 	bodyMap := make(map[string]string, 0)
 	bodyMap["name"] = name
@@ -290,7 +321,7 @@ func (p *PhylumClient) DeleteProject(projectId string) (*ProjectSummaryResponse,
 		return nil, err
 	}
 
-	url := fmt.Sprintf("https://api.phylum.io/api/v0/data/projects/%v", projectId)
+	url := fmt.Sprintf("%s/data/projects/%v", p.ApiUrl, projectId)
 
 	resp, err := p.Client.R().
 		SetAuthToken(p.OauthToken.AccessToken).
@@ -349,7 +380,7 @@ func (p *PhylumClient) GetProject(projectID string) (*ProjectResponse, error) {
 func (p *PhylumClient) GetUserProject(projectID string) (*ProjectResponse, error) {
 	var result ProjectResponse
 
-	url := fmt.Sprintf("https://api.phylum.io/api/v0/data/projects/%s", projectID)
+	url := fmt.Sprintf("%s/data/projects/%s", p.ApiUrl, projectID)
 	resp, err := p.Client.R().
 		SetHeader("accept", "application/json").
 		SetAuthToken(p.OauthToken.AccessToken).
@@ -374,7 +405,7 @@ func (p *PhylumClient) GetUserProject(projectID string) (*ProjectResponse, error
 func (p *PhylumClient) GetGroupProject(groupName string, projectID string) (*ProjectResponse, error) {
 	var result ProjectResponse
 
-	url := fmt.Sprintf("https://api.phylum.io/api/v0/groups/%s/projects/%s", groupName, projectID)
+	url := fmt.Sprintf("%s/groups/%s/projects/%s", p.ApiUrl, groupName, projectID)
 	resp, err := p.Client.R().
 		SetHeader("accept", "application/json").
 		SetAuthToken(p.OauthToken.AccessToken).
@@ -382,14 +413,14 @@ func (p *PhylumClient) GetGroupProject(groupName string, projectID string) (*Pro
 
 	test := CheckResponse(resp)
 	if test != nil || err != nil {
-		fmt.Printf("failed to get projects: %v\n", err)
+		fmt.Printf("GetGroupProject: failed to get project: %s, %s, %s\n", groupName, projectID, *test)
 		return nil, errors.New(*test)
 	}
 
 	body := resp.Body()
 	err = json.Unmarshal(body, &result)
 	if err != nil {
-		fmt.Printf("GetProjects(): failed to parse response: %v\n", err)
+		fmt.Printf("GetGroupProject(): failed to parse response: %v\n", err)
 	}
 
 	return &result, nil
@@ -398,7 +429,7 @@ func (p *PhylumClient) GetGroupProject(groupName string, projectID string) (*Pro
 // TODO: this should be folded into ListProjects() with an optional struct
 func (p *PhylumClient) ListGroupProjects(groupName string) ([]ProjectSummaryResponse, error) {
 	var result []ProjectSummaryResponse
-	url := fmt.Sprintf("https://api.phylum.io/api/v0/groups/%s/projects", groupName)
+	url := fmt.Sprintf("%s/groups/%s/projects", p.ApiUrl, groupName)
 
 	resp, err := p.Client.R().
 		SetHeader("accept", "application/json").
@@ -420,11 +451,6 @@ func (p *PhylumClient) ListGroupProjects(groupName string) ([]ProjectSummaryResp
 	return result, nil
 }
 
-// type MetaProject struct {
-// 	Project ProjectSummaryResponse
-// 	Group string
-// }
-
 func (p *PhylumClient) ListAllProjects() ([]ProjectSummaryResponse, error) {
 	var allProjects []ProjectSummaryResponse
 
@@ -441,13 +467,6 @@ func (p *PhylumClient) ListAllProjects() ([]ProjectSummaryResponse, error) {
 			fmt.Printf("Failed to ListGroupProjects: %v\n", err)
 			return nil, err
 		}
-		// for _, gp := range groupProjectList {
-		// 	newMetaProject := MetaProject{
-		// 		Project: gp,
-		// 		Group:   group.GroupName,
-		// 	}
-		// 	allProjects = append(allProjects, newMetaProject)
-		// }
 		allProjects = append(allProjects, groupProjectList...)
 	}
 
@@ -458,15 +477,7 @@ func (p *PhylumClient) ListAllProjects() ([]ProjectSummaryResponse, error) {
 		return nil, err
 	}
 
-	// for _, up := range projectList {
-	// 	newProject := MetaProject{
-	// 		Project: up,
-	// 	}
-	// 	allProjects = append(allProjects, newProject)
-	// }
 	allProjects = append(allProjects, projectList...)
-
-	//p.AllProjects = allProjects
 
 	return allProjects, nil
 }
@@ -479,14 +490,12 @@ func (p *PhylumClient) GetAllProjects() ([]*ProjectResponse, error) {
 	// Get all group projects into a slice
 	groups, err := p.GetUserGroups()
 	if err != nil {
-		fmt.Printf("Failed to GetUserGroups(): %v\n", err)
 		return nil, err
 	}
 
 	for _, group := range groups.Groups {
 		groupProjectList, err := p.ListGroupProjects(group.GroupName)
 		if err != nil {
-			fmt.Printf("Failed to ListGroupProjects: %v\n", err)
 			return nil, err
 		}
 		allProjectList = append(allProjectList, groupProjectList...)
@@ -494,7 +503,6 @@ func (p *PhylumClient) GetAllProjects() ([]*ProjectResponse, error) {
 
 	projectList, err := p.ListProjects()
 	if err != nil {
-		fmt.Printf("Failed to ListProjects(): %v\n", err)
 		return nil, err
 	}
 
@@ -537,29 +545,41 @@ func (p *PhylumClient) GetAllProjects() ([]*ProjectResponse, error) {
 	return result, err
 }
 
-func (p *PhylumClient) GetAllGroupProjects(groupName string) ([]*ProjectResponse, error) {
+// GetAllGroupProjects Gets all group projects for a given group name
+// Commented out for now
+func (p *PhylumClient) GetAllGroupProjects(groupName string) ([]*ProjectResponse, []error) {
 	var result []*ProjectResponse
+	var errs []error
 
 	groupProjectList, err := p.ListGroupProjects(groupName)
 	if err != nil {
 		fmt.Printf("Failed to ListGroupProjects: %v\n", err)
-		return nil, err
+		errs = append(errs, err)
+		return nil, errs
 	}
 
 	chRecv := make(chan *ProjectResponse)
+	chErr := make(chan error)
 	var wg sync.WaitGroup
+	sem := semaphore.NewWeighted(5)
+	ctx := context.TODO()
 
 	for _, proj := range groupProjectList {
 		wg.Add(1)
 		go func(inProj ProjectSummaryResponse) {
 			defer wg.Done()
+			if err = sem.Acquire(ctx, 1); err != nil {
+				fmt.Printf("Failed to acquire semaphore: %v\n", err)
+				return
+			}
+			defer sem.Release(1)
 			temp, err := p.GetGroupProject(groupName, inProj.Id.String())
 			if err != nil {
 				fmt.Printf("Failed to GetGroupProject: %v\n", err)
+				chErr <- err
 				return
 			}
 			chRecv <- temp
-
 		}(proj)
 	}
 
@@ -569,9 +589,16 @@ func (p *PhylumClient) GetAllGroupProjects(groupName string) ([]*ProjectResponse
 		}
 		close(chRecv)
 	}()
+
+	go func() {
+		for errPart := range chErr {
+			errs = append(errs, errPart)
+		}
+		close(chErr)
+	}()
 	wg.Wait()
 
-	return result, err
+	return result, errs
 }
 
 // TODO: should be removed
@@ -623,7 +650,8 @@ func (p *PhylumClient) GetAllGroupProjectsByEcosystem(groupName string, ecosyste
 
 func (p *PhylumClient) AnalyzeParsedPackages(projectType string, projectID string, packages *[]PackageDescriptor) (string, error) {
 	var respSPR SubmitPackageResponse
-	var url string = "https://api.phylum.io/api/v0/data/jobs"
+	//var url string = "https://api.phylum.io/api/v0/data/jobs"
+	url := fmt.Sprintf("%s/data/jobs", p.ApiUrl)
 
 	submitPackageRequest := SubmitPackageRequest{
 		GroupName: nil,
@@ -659,7 +687,7 @@ func (p *PhylumClient) AnalyzeParsedPackages(projectType string, projectID strin
 // TODO: handle jobstatusresponsevariant
 func (p *PhylumClient) GetJobVerbose(jobID string) (*JobStatusResponseForPackageStatusExtended, *[]byte, error) {
 	var jobResponse JobStatusResponseForPackageStatusExtended
-	url := fmt.Sprintf("https://api.phylum.io/api/v0/data/jobs/%s?verbose=true", jobID)
+	url := fmt.Sprintf("%s/data/jobs/%s?verbose=true", p.ApiUrl, jobID)
 
 	resp, err := p.Client.R().
 		SetAuthToken(p.OauthToken.AccessToken).
@@ -681,6 +709,7 @@ func (p *PhylumClient) GetJobVerbose(jobID string) (*JobStatusResponseForPackage
 
 // ParseLockfile parses a lockfile into a struct that can be submitted for analysis.
 // It takes the path to a lockfile as input, and returns a pointer to a slice of PackageDescriptors
+// This method uses an online service from Phylum to parse packages and requires access to the Internet
 func (p *PhylumClient) ParseLockfile(lockfilePath string) (*[]PackageDescriptor, error) {
 	if _, err := os.Stat(lockfilePath); errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("lockfilePath: %v is not a file", lockfilePath)
@@ -709,7 +738,7 @@ func (p *PhylumClient) ParseLockfile(lockfilePath string) (*[]PackageDescriptor,
 func (p *PhylumClient) GetProjectPreferences(projectID string) (*ProjectPreferencesResponse, error) {
 	var result ProjectPreferencesResponse
 
-	url := fmt.Sprintf("https://api.phylum.io/api/v0/preferences/project/%s", projectID)
+	url := fmt.Sprintf("%s/preferences/project/%s", p.ApiUrl, projectID)
 	resp, err := p.Client.R().
 		SetHeader("accept", "application/json").
 		SetAuthToken(p.OauthToken.AccessToken).

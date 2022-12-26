@@ -127,7 +127,7 @@ func TestPhylumClient_GetGroupProject(t *testing.T) {
 		want    *ProjectResponse
 		wantErr bool
 	}{
-		{"one", args{"test2", "85e3142f-efc9-41fc-b004-ca570df89af8"}, nil, false},
+		{"one", args{"test2", "85e3142f-efc9-41fc-b004-ca570df89af8"}, nil, true},
 		{"showcase3", args{"demo", "dd937163-c655-4ee2-bb16-32fbc48a75f7"}, nil, false},
 	}
 	for _, tt := range tests {
@@ -190,10 +190,12 @@ func TestPhylumClient_GetAllGroupProjects(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := p.GetAllGroupProjects(tt.args.groupName)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetAllGroupProjects() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			got, errs := p.GetAllGroupProjects(tt.args.groupName)
+			for _, err := range errs {
+				if (err != nil) != tt.wantErr {
+					t.Errorf("GetAllGroupProjects() error = %v, wantErr %v", err, tt.wantErr)
+					return
+				}
 			}
 			if reflect.TypeOf(got) != reflect.TypeOf(tt.want) {
 				t.Errorf("GetAllGroupProjects() got = %v, want %v", got, tt.want)
@@ -498,7 +500,7 @@ func TestPhylumClient_GetProjectPreferences(t *testing.T) {
 				t.Errorf("GetProjectPreferences() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if reflect.TypeOf(got) != reflect.TypeOf(tt.want) {
 				t.Errorf("GetProjectPreferences() got = %v, want %v", got, tt.want)
 			}
 		})
@@ -521,7 +523,7 @@ func TestPhylumClient_ListAllProjects(t *testing.T) {
 				t.Errorf("ListAllProjects() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if reflect.TypeOf(got) != reflect.TypeOf(tt.want) {
 				t.Errorf("ListAllProjects() got = %v, want %v", got, tt.want)
 			}
 		})
