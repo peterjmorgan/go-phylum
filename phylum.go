@@ -361,7 +361,7 @@ func (p *PhylumClient) GetProject(projectID string) (*ProjectResponse, error) {
 		return nil, fmt.Errorf("GetProject: failed to find project with ID: %v\n", projectID)
 	}
 
-	if *targetProject.GroupName != "" {
+	if targetProject.GroupName != nil {
 		// group project
 		returnProject, err = p.GetGroupProject(*targetProject.GroupName, targetProject.Id.String())
 		if err != nil {
