@@ -521,12 +521,14 @@ func (p *PhylumClient) GetAllProjects() ([]*ProjectResponse, error) {
 				temp, err = p.GetGroupProject(*inProj.GroupName, inProj.Id.String())
 				if err != nil {
 					fmt.Printf("Failed to GetGroupProject: %v\n", err)
+					temp = &ProjectResponse{}
 					return
 				}
 			} else {
 				temp, err = p.GetUserProject(inProj.Id.String())
 				if err != nil {
 					fmt.Printf("Failed to GetUserProject: %v\n", err)
+					temp = &ProjectResponse{}
 					return
 				}
 			}
